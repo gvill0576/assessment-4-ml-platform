@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fraud-config
+  namespace: team-fraud
+data:
+  ENDPOINT_NAME: "george-fraud-endpoint"
+  AWS_REGION: "us-east-1"
+  LOG_LEVEL: "info"

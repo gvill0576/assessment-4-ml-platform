@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forecasting-config
+  namespace: team-forecasting
+data:
+  ENDPOINT_NAME: "george-forecasting-endpoint"
+  AWS_REGION: "us-east-1"
+  LOG_LEVEL: "info"

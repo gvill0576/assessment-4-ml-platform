@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.secrets
+*.tfstate
+*.tfstate.backup
+.terraform/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.terraform.lock.hcl
+secrets.sh

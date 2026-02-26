@@ -1,0 +1,87 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: k8s-training-cluster
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push fraud-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/fraud
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/${{ github.actor }}/fraud-service:latest
+
+      - name: Build and push recommendations-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/recommendations
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/${{ github.actor }}/recommendations-service:latest
+
+      - name: Build and push forecasting-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/forecasting
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/${{ github.actor }}/forecasting-service:latest
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
+
+      - name: Deploy fraud manifests
+        run: kubectl apply -f k8s/fraud/
+
+      - name: Deploy recommendations manifests
+        run: kubectl apply -f k8s/recommendations/
+
+      - name: Deploy forecasting manifests
+        run: kubectl apply -f k8s/forecasting/
+
+      - name: Verify fraud rollout
+        run: kubectl rollout status deployment/fraud-service -n team-fraud --timeout=120s
+
+      - name: Verify recommendations rollout
+        run: kubectl rollout status deployment/recommendations-service -n team-recommendations --timeout=120s
+
+      - name: Verify forecasting rollout
+        run: kubectl rollout status deployment/forecasting-service -n team-forecasting --timeout=120s
+
+      - name: Health check all services
+        run: |
+          echo "Checking pod status across all namespaces..."
+          kubectl get pods -n team-fraud
+          kubectl get pods -n team-recommendations
+          kubectl get pods -n team-forecasting
