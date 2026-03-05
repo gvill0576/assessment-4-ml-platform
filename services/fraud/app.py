@@ -42,18 +42,13 @@ def ready():
 async def predict(data: dict):
     try:
         client = get_sagemaker_client()
-
-        # Convert JSON fields to CSV string in the correct order
         csv_body = f"{data['amount']},{data['hour']},{data['is_foreign']},{data['is_online']}"
-
         response = client.invoke_endpoint(
             EndpointName=ENDPOINT_NAME,
             ContentType="text/csv",
             Body=csv_body
         )
-
-        result = json.loads(response["Body"].read().decode("utf-8"))
-        return {"prediction": result["predictions"][0]["score"], "endpoint": ENDPOINT_NAME}
-
+        result = response["Body"].read().decode("utf-8").strip()
+        return {"prediction": float(result), "endpoint": ENDPOINT_NAME}
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
