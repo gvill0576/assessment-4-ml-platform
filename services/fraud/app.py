@@ -39,17 +39,21 @@ def ready():
         )
 
 @app.post("/predict")
-def predict(payload: dict):
-    if not ENDPOINT_NAME:
-        raise HTTPException(status_code=503, detail="ENDPOINT_NAME not set")
+async def predict(data: dict):
     try:
         client = get_sagemaker_client()
+
+        # Convert JSON fields to CSV string in the correct order
+        csv_body = f"{data['amount']},{data['hour']},{data['is_foreign']},{data['is_online']}"
+
         response = client.invoke_endpoint(
             EndpointName=ENDPOINT_NAME,
-            ContentType="application/json",
-            Body=json.dumps(payload),
+            ContentType="text/csv",
+            Body=csv_body
         )
-        result = json.loads(response["Body"].read().decode())
-        return {"prediction": result, "team": "fraud", "endpoint": ENDPOINT_NAME}
+
+        result = json.loads(response["Body"].read().decode("utf-8"))
+        return {"prediction": result["predictions"][0]["score"], "endpoint": ENDPOINT_NAME}
+
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
